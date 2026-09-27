@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Финансовый калькулятор v2 — бюджет, долги, категории</title>
+<style>
+:root{
+  --bg:#0e1320; --card:#161e2e; --card2:#1b2436; --border:#25304a;
+  --text:#e9eefb; --muted:#8a97b1;
+  --green:#34d399; --red:#f87171; --blue:#60a5fa; --amber:#fbbf24; --violet:#a78bfa; --pink:#f472b6;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+  background:radial-gradient(1200px 600px at 10% -10%, #1b2a4a 0%, transparent 60%), var(--bg);
+  color:var(--text); min-height:100vh; padding:24px 16px 60px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+header h1{font-size:clamp(20px,4vw,30px);font-weight:700;letter-spacing:-.5px}
+header p{color:var(--muted);margin-top:8px;font-size:14px;max-width:680px;line-height:1.5}
+.version{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;
+  background:rgba(96,165,250,.18);color:var(--blue);vertical-align:middle;margin-left:8px;letter-spacing:.5px}
+
+.header-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.ghost-btn{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  padding:9px 14px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;transition:.15s;
+  white-space:nowrap;
+}
+.ghost-btn:hover{border-color:var(--blue);color:var(--blue)}
+.ghost-btn.danger:hover{border-color:var(--red);color:var(--red)}
+
+.card{
+  background:linear-gradient(180deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:var(--radius);padding:18px;
+}
+.card h2{font-size:16px;font-weight:600;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.card h3{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.muted-small{font-size:12px;color:var(--muted);font-weight:400}
+
+/* ---- статистика ---- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.stat .label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+.stat .value{font-size:clamp(19px,3vw,25px);font-weight:700;display:block;letter-spacing:-.5px}
+.stat .hint{font-size:12px;color:var(--muted);display:block;margin-top:5px}
+
+/* ---- сетка ---- */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+
+/* ---- строки ввода ---- */
+.row{display:grid;grid-template-columns:1fr 125px 36px;gap:8px;margin-bottom:8px;align-items:center}
+.row-loan{display:grid;grid-template-columns:1fr 120px 130px 36px;gap:8px;margin-bottom:8px;align-items:center}
+.row-cat{display:grid;grid-template-columns:1fr 120px 140px 36px;gap:8px;margin-bottom:8px;align-items:center}
+
+input[type=text],input[type=number],input[type=date],select{
+  width:100%;background:#0d1424;border:1px solid var(--border);color:var(--text);
+  padding:10px 12px;border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:.15s;
+  color-scheme:dark;
+}
+input[type=text]::placeholder,input[type=number]::placeholder{color:#4d5b78}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(96,165,250,.14)}
+input[type=number]{text-align:right;-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=date]{font-size:13px;padding:10px 10px}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.75);cursor:pointer}
+select{cursor:pointer;font-size:13px;padding:10px 8px}
+
+.del-btn{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:10px;height:39px;cursor:pointer;font-size:18px;line-height:1;transition:.15s;
+}
+.del-btn:hover{background:rgba(248,113,113,.12);color:var(--red);border-color:rgba(248,113,113,.4)}
+
+.add-btn{
+  width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--border);
+  background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;font-size:14px;transition:.15s;
+}
+.add-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+.total-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-top:12px;margin-top:10px;border-top:1px solid var(--border);font-weight:600;font-size:15px;
+}
+
+/* ---- слайдеры ---- */
+.slider-row{margin-bottom:18px}
+.slider-head{display:flex;justify-content:space-between;font-size:14px;margin-bottom:9px}
+.slider-head span:last-child{font-weight:700;color:var(--text)}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:3px;
+  background:#25304a;outline:none;--c:var(--blue);
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--c);cursor:pointer;border:3px solid #0e1320;box-shadow:0 0 0 1px var(--c);
+}
+input[type=range]::-moz-range-thumb{
+  width:16px;height:16px;border-radius:50%;background:var(--c);
+  cursor:pointer;border:3px solid #0e1320;box-shadow:0 0 0 1px var(--c);
+}
+.range-green{--c:var(--green)}
+.range-amber{--c:var(--amber)}
+
+.mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:18px}
+.mini{background:#0d1424;border:1px solid var(--border);border-radius:12px;padding:12px}
+.mini-label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+.mini-val{font-size:18px;font-weight:700;display:block;letter-spacing:-.3px}
+.mini-hint{font-size:11px;color:var(--muted);display:block;margin-top:4px}
+.green{color:var(--green)} .amber{color:var(--amber)} .violet{color:var(--violet)}
+.red{color:var(--red)} .blue{color:var(--blue)} .pink{color:var(--pink)}
+
+/* ---- стек-бар ---- */
+.stack-bar{
+  display:flex;height:28px;border-radius:9px;overflow:hidden;
+  background:#0a1020;border:1px solid var(--border);margin-bottom:16px;
+}
+.stack-seg{transition:width .35s ease;min-width:0}
+.stack-empty{width:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.legend-item i{width:10px;height:10px;border-radius:3px;flex:none}
+.legend-item b{color:var(--text);margin-left:auto;font-weight:600;font-size:13px}
+
+/* ---- бары расходов ---- */
+.bar-row{margin-bottom:13px}
+.bar-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--muted);gap:10px}
+.bar-top span:first-child{color:var(--text)}
+.bar-track{height:8px;background:#0a1020;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#f87171,#fb923c);transition:width .35s ease}
+.empty{color:var(--muted);font-size:13px}
+
+/* ---- резерв ---- */
+.field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.field{display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--muted)}
+.goal-box{background:#0b111e;border:1px solid var(--border);border-radius:12px;padding:15px}
+.goal-line{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:9px;align-items:center;gap:10px}
+.goal-line:last-child{margin-bottom:0}
+.goal-line strong{color:var(--text);font-size:16px;font-weight:700}
+.progress{height:11px;background:#060a12;border-radius:6px;overflow:hidden;border:1px solid var(--border);margin-bottom:11px}
+.progress-fill{height:100%;border-radius:6px;transition:width .4s ease}
+
+/* ---- предупреждение ---- */
+.warn{
+  display:none;margin-top:14px;padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.5;
+  background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);color:#fca5a5;
+}
+
+/* ---- таблица ---- */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+thead{background:#0b111e}
+thead th{
+  text-align:left;padding:12px 14px;font-weight:600;color:var(--muted);
+  font-size:12px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+tbody td{padding:11px 14px;border-bottom:1px solid #1d273c;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(96,165,250,.05)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.row-group{background:#111a2a}
+.row-group td{font-weight:700;color:var(--blue);text-transform:uppercase;font-size:11px;letter-spacing:.5px}
+.row-total td{background:#101929;font-weight:700}
+.row-total td:first-child{color:var(--text)}
+.row-settings td:first-child{color:var(--muted)}
+.badge{
+  display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;
+  background:rgba(96,165,250,.15);color:var(--blue);font-weight:600;
+}
+.badge.green{background:rgba(52,211,153,.15);color:var(--green)}
+.badge.amber{background:rgba(251,191,36,.15);color:var(--amber)}
+.badge.violet{background:rgba(167,139,250,.15);color:var(--violet)}
+.badge.red{background:rgba(248,113,113,.15);color:var(--red)}
+.badge.pink{background:rgba(244,114,182,.15);color:var(--pink)}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#1b2436;border:1px solid var(--border);color:var(--text);
+  padding:12px 22px;border-radius:12px;font-size:14px;opacity:0;
+  transition:.3s;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:99;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(52,211,153,.5)}
+.toast.err{border-color:rgba(248,113,113,.5)}
+
+.section-hint{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5}
+.person-tag{display:inline-flex;align-items:center;gap:5px;font-weight:600}
+.person-tag::before{content:'👤';font-size:13px}
+
+@media (max-width:640px){
+  .row-loan{grid-template-columns:1fr 1fr 36px;grid-template-areas:"name name del" "amount date del";gap:6px}
+  .row-loan input[data-field=person]{grid-area:name}
+  .row-loan input[data-field=amount]{grid-area:amount}
+  .row-loan input[data-field=date]{grid-area:date}
+  .row-loan button{grid-area:del;height:100%}
+  .row-cat{grid-template-columns:1fr 1fr 36px;grid-template-areas:"name name del" "amount type del";gap:6px}
+  .row-cat input[data-field=name]{grid-area:name}
+  .row-cat input[data-field=amount]{grid-area:amount}
+  .row-cat select{grid-area:type}
+  .row-cat button{grid-area:del;height:100%}
+}
+@media (max-width:520px){
+  .row{grid-template-columns:1fr 100px 34px}
+  body{padding:16px 12px 50px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>💰 Финансовый калькулятор <span class="version">v2</span></h1>
+      <p>Полный контроль: доходы, расходы, распределение свободных денег, долги (кому я одолжил и кто вернул), другие категории и резерв «на чёрный день». Всё сохраняется в браузере.</p>
+    </div>
+    <div class="header-actions">
+      <button class="ghost-btn" id="exportBtn">💾 Экспорт</button>
+      <button class="ghost-btn" id="importBtn">📂 Импорт</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <button class="ghost-btn danger" id="resetBtn">Сбросить</button>
+    </div>
+  </header>
+
+  <!-- СТАТИСТИКА -->
+  <section class="stats">
+    <div class="card stat">
+      <span class="label">Доход в месяц</span>
+      <span class="value green" id="stIncomeM">0 ₽</span>
+      <span class="hint" id="stIncomeY">за год: 0 ₽</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Расход в месяц</span>
+      <span class="value red" id="stExpenseM">0 ₽</span>
+      <span class="hint" id="stExpenseY">за год: 0 ₽</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Свободные деньги / мес</span>
+      <span class="value blue" id="stFreeM">0 ₽</span>
+      <span class="hint" id="stFreeY">за год: 0 ₽</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Норма сбережений</span>
+      <span class="value violet" id="stRate">0%</span>
+      <span class="hint">доля дохода, которую вы сохраняете</span>
+    </div>
+  </section>
+
+  <!-- ДОХОДЫ И РАСХОДЫ -->
+  <div class="grid2">
+    <div class="card">
+      <h2>📥 Доходы <span class="muted-small">в месяц</span></h2>
+      <div id="incomeList"></div>
+      <button class="add-btn" id="addIncome">+ Добавить доход</button>
+      <div class="total-row"><span>Итого доход</span><span class="green" id="incomeTotal">0 ₽</span></div>
+    </div>
+
+    <div class="card">
+      <h2>📤 Расходы <span class="muted-small">в месяц</span></h2>
+      <div id="expenseList"></div>
+      <button class="add-btn" id="addExpense">+ Добавить расход</button>
+      <div class="total-row"><span>Итого расход</span><span class="red" id="expenseTotal">0 ₽</span></div>
+    </div>
+  </div>
+
+  <!-- РАСПРЕДЕЛЕНИЕ -->
+  <div class="card">
+    <h2>🎯 Куда направить свободные деньги</h2>
+
+    <div class="slider-row">
+      <div class="slider-head"><span>📈 Инвестиции</span><span id="investPctLabel">30%</span></div>
+      <input type="range" id="investRange" min="0" max="100" step="5" value="10" class="range-green">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-head"><span>🛡️ Резерв «на чёрный день»</span><span id="reservePctLabel">20%</span></div>
+      <input type="range" id="reserveRange" min="0" max="100" step="5" value="10" class="range-amber">
+    </div>
+
+    <div class="slider-row" style="margin-bottom:0">
+      <div class="slider-head"><span>🛒 Свободно (траты / цели)</span><span id="restPctLabel">50%</span></div>
+      <div class="progress" style="margin-bottom:0"><div class="progress-fill" id="restBar" style="background:var(--violet);width:50%"></div></div>
+    </div>
+
+    <div class="mini-grid">
+      <div class="mini">
+        <span class="mini-label">📈 Инвестиции / мес</span>
+        <span class="mini-val green" id="invM">0 ₽</span>
+        <span class="mini-hint" id="invY">в год: 0 ₽</span>
+      </div>
+      <div class="mini">
+        <span class="mini-label">🛡️ Резерв / мес</span>
+        <span class="mini-val amber" id="resM">0 ₽</span>
+        <span class="mini-hint" id="resY">в год: 0 ₽</span>
+      </div>
+      <div class="mini">
+        <span class="mini-label">🛒 Остаток / мес</span>
+        <span class="mini-val violet" id="restM">0 ₽</span>
+        <span class="mini-hint" id="restY">в год: 0 ₽</span>
+      </div>
+    </div>
+
+    <div class="warn" id="warn">
+      ⚠️ Расходы больше доходов! Сначала уберите лишние траты или увеличьте доход — распределять пока нечего.
+    </div>
+  </div>
+
+  <!-- ДОЛГИ И ЗАЙМЫ -->
+  <div class="card">
+    <h2>🤝 Долги и займы <span class="muted-small">кто кому должен</span></h2>
+
+    <div class="mini-grid" style="margin-top:0;margin-bottom:20px">
+      <div class="mini">
+        <span class="mini-label">💸 Всего одолжено</span>
+        <span class="mini-val pink" id="loanTotalOut">0 ₽</span>
+        <span class="mini-hint" id="loanCountOut">0 записей</span>
+      </div>
+      <div class="mini">
+        <span class="mini-label">✅ Всего вернули</span>
+        <span class="mini-val green" id="loanTotalBack">0 ₽</span>
+        <span class="mini-hint" id="loanCountBack">0 записей</span>
+      </div>
+      <div class="mini">
+        <span class="mini-label">⏳ Мне ещё должны</span>
+        <span class="mini-val amber" id="loanOutstanding">0 ₽</span>
+        <span class="mini-hint">одолжено минус возвращено</span>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <h3>📤 Я одолжил <span class="muted-small">— люди, которым я дал деньги</span></h3>
+        <p class="section-hint">Записывайте каждую сумму, которую вы дали в долг. Это ваши деньги «на улице».</p>
+        <div id="loanList"></div>
+        <button class="add-btn" id="addLoan">+ Добавить долг</button>
+        <div class="total-row"><span>Одолжено всего</span><span class="pink" id="loanOutTotal">0 ₽</span></div>
+      </div>
+
+      <div>
+        <h3>📥 Мне вернули <span class="muted-small">— люди, которые отдали деньги</span></h3>
+        <p class="section-hint">Каждый возврат фиксируйте здесь — так вы видите, сколько уже вернулось.</p>
+        <div id="returnList"></div>
+        <button class="add-btn" id="addReturn">+ Добавить возврат</button>
+        <div class="total-row"><span>Вернули всего</span><span class="green" id="returnInTotal">0 ₽</span></div>
+      </div>
+    </div>
+
+    <div id="loanPeople"></div>
+  </div>
+
+  <!-- ДРУГИЕ КАТЕГОРИИ -->
+  <div class="card">
+    <h2>📁 Другие категории <span class="muted-small">активы, цели, обязательства</span></h2>
+    <p class="section-hint">Здесь можно вести любые важные для вас категории: накопления, крупные цели, долги, страховки, обучение — что угодно.</p>
+    <div id="catList"></div>
+    <button class="add-btn" id="addCat">+ Добавить категорию</button>
+    <div class="mini-grid" id="catSummary" style="margin-top:18px"></div>
+  </div>
+
+  <!-- КУДА УХОДЯТ ДЕНЬГИ -->
+  <div class="card">
+    <h2>🔍 Куда уходят деньги</h2>
+    <div class="stack-bar" id="stackBar"></div>
+    <div class="legend" id="stackLegend"></div>
+
+    <h2 style="margin-top:24px">📊 Расходы по категориям</h2>
+    <div id="expenseBars"></div>
+  </div>
+
+  <!-- РЕЗЕРВ -->
+  <div class="card">
+    <h2>🛡️ Резерв «на чёрный день»</h2>
+
+    <div class="field-grid">
+      <label class="field">
+        <span>Сколько месяцев расходов хотите закрыть</span>
+        <input type="number" id="reserveMonths" min="1" max="36" step="1" value="6">
+      </label>
+      <label class="field">
+        <span>Уже накоплено в резерве</span>
+        <input type="number" id="reserveCurrent" min="0" step="1000" value="" placeholder="0">
+      </label>
+    </div>
+
+    <div class="goal-box">
+      <div class="goal-line"><span>Цель резерва</span><strong id="goalVal">0 ₽</strong></div>
+      <div class="progress"><div class="progress-fill" id="goalBar" style="background:linear-gradient(90deg,#fbbf24,#f59e0b);width:0%"></div></div>
+      <div class="goal-line"><span id="goalLeft">Осталось накопить: 0 ₽</span><span id="goalPct">0%</span></div>
+      <div class="goal-line"><span id="goalEta">—</span></div>
+    </div>
+  </div>
+
+  <!-- ТАБЛИЦА ВСЕХ ДАННЫХ -->
+  <div class="card">
+    <h2>📋 Таблица всех данных и настроек <span class="muted-small">все суммы в ₽</span></h2>
+    <div class="table-wrap">
+      <table id="fullTable">
+        <thead>
+          <tr>
+            <th>Раздел</th>
+            <th>Название / человек</th>
+            <th class="num">Сумма / мес</th>
+            <th class="num">За год</th>
+            <th class="num">Доля</th>
+          </tr>
+        </thead>
+        <tbody id="fullTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ ХРАНИЛИЩЕ ============ */
+const KEY = 'money-calc-v2';
+
+const DEFAULT_STATE = {
+  incomes: [
+    { name: 'Зарплата', amount: 0 },
+    { name: 'Подработка / доп. доход', amount: 0 }
+  ],
+  expenses: [
+    { name: 'Жильё (аренда / ипотека)', amount: 0 },
+    { name: 'Продукты', amount: 0 },
+    { name: 'Транспорт', amount: 0 },
+    { name: 'Связь и интернет', amount: 0 },
+    { name: 'Здоровье и лекарства', amount: 0 },
+    { name: 'Одежда и обувь', amount: 0 },
+    { name: 'Кредиты и долги', amount: 0 },
+    { name: 'Дети / семья', amount: 0 },
+    { name: 'Развлечения', amount: 0 },
+    { name: 'Прочее', amount: 0 }
+  ],
+  loans: [],
+  returns: [],
+  otherCategories: [
+    { name: 'Накопления', amount: 0, type: 'asset' }
+  ],
+  investPercent: 30,
+  reservePercent: 20,
+  reserveMonths: 6,
+  reserveCurrent: 0
+};
+
+const CAT_TYPES = {
+  asset:    { label: 'Актив',        color: 'green'  },
+  goal:     { label: 'Цель',         color: 'violet' },
+  debt:     { label: 'Обязательство',color: 'red'    },
+  other:    { label: 'Другое',       color: 'blue'   }
+};
+
+let state = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const parsed = JSON.parse(raw);
+    const base = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const merged = Object.assign(base, parsed);
+    if (!Array.isArray(merged.loans)) merged.loans = [];
+    if (!Array.isArray(merged.returns)) merged.returns = [];
+    if (!Array.isArray(merged.otherCategories)) merged.otherCategories = [];
+    return merged;
+  } catch (e) {
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+/* ============ УТИЛИТЫ ============ */
+const fmt = n => new Intl.NumberFormat('ru-RU').format(Math.round(n || 0)) + ' ₽';
+const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = d => {
+  if (!d) return '—';
+  const parts = String(d).split('-');
+  if (parts.length !== 3) return d;
+  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+};
+
+/* ============ УВЕДОМЛЕНИЕ ============ */
+let toastTimer = null;
+function showToast(msg, type = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast ' + type; }, 2400);
+}
+
+/* ============ ОТРИСОВКА: ДОХОДЫ / РАСХОДЫ ============ */
+function simpleRowEl(item, list, kind, renderFn) {
+  const row = document.createElement('div');
+  row.className = 'row';
+
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.placeholder = kind === 'income' ? 'Название дохода' : 'Название расхода';
+  name.value = item.name || '';
+  name.addEventListener('input', () => { item.name = name.value; save(); update(); });
+
+  const amt = document.createElement('input');
+  amt.type = 'number';
+  amt.min = '0'; amt.step = '100'; amt.placeholder = '0';
+  amt.value = item.amount ? item.amount : '';
+  amt.addEventListener('input', () => {
+    item.amount = Math.max(0, parseFloat(amt.value) || 0);
+    update();
+  });
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'del-btn';
+  del.textContent = '×';
+  del.title = 'Удалить';
+  del.addEventListener('click', () => {
+    const i = list.indexOf(item);
+    if (i > -1) list.splice(i, 1);
+    renderFn();
+    update();
+  });
+
+  row.append(name, amt, del);
+  return row;
+}
+
+function renderIncomes() {
+  const box = document.getElementById('incomeList');
+  box.innerHTML = '';
+  state.incomes.forEach(it => box.appendChild(simpleRowEl(it, state.incomes, 'income', renderIncomes)));
+}
+
+function renderExpenses() {
+  const box = document.getElementById('expenseList');
+  box.innerHTML = '';
+  state.expenses.forEach(it => box.appendChild(simpleRowEl(it, state.expenses, 'expense', renderExpenses)));
+}
+
+/* ============ ОТРИСОВКА: ДОЛГИ ============ */
+function loanRowEl(item, list, renderFn) {
+  const row = document.createElement('div');
+  row.className = 'row-loan';
+
+  const person = document.createElement('input');
+  person.type = 'text';
+  person.dataset.field = 'person';
+  person.placeholder = 'Имя человека';
+  person.value = item.person || '';
+  person.addEventListener('input', () => { item.person = person.value; save(); update(); });
+
+  const amt = document.createElement('input');
+  amt.type = 'number';
+  amt.dataset.field = 'amount';
+  amt.min = '0'; amt.step = '100'; amt.placeholder = 'Сумма';
+  amt.value = item.amount ? item.amount : '';
+  amt.addEventListener('input', () => {
+    item.amount = Math.max(0, parseFloat(amt.value) || 0);
+    update();
+  });
+
+  const date = document.createElement('input');
+  date.type = 'date';
+  date.dataset.field = 'date';
+  date.value = item.date || '';
+  date.addEventListener('input', () => { item.date = date.value; save(); });
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'del-btn';
+  del.textContent = '×';
+  del.title = 'Удалить';
+  del.addEventListener('click', () => {
+    const i = list.indexOf(item);
+    if (i > -1) list.splice(i, 1);
+    renderFn();
+    update();
+  });
+
+  row.append(person, amt, date, del);
+  return row;
+}
+
+function renderLoans() {
+  const box = document.getElementById('loanList');
+  box.innerHTML = '';
+  if (!state.loans.length) {
+    box.innerHTML = '<p class="empty" style="margin-bottom:8px">Пока никому не одалживали. Добавьте запись ↓</p>';
+  }
+  state.loans.forEach(it => box.appendChild(loanRowEl(it, state.loans, renderLoans)));
+}
+
+function renderReturns() {
+  const box = document.getElementById('returnList');
+  box.innerHTML = '';
+  if (!state.returns.length) {
+    box.innerHTML = '<p class="empty" style="margin-bottom:8px">Возвратов пока нет. Фиксируйте каждый возврат ↓</p>';
+  }
+  state.returns.forEach(it => box.appendChild(loanRowEl(it, state.returns, renderReturns)));
+}
+
+/* ============ ОТРИСОВКА: ДРУГИЕ КАТЕГОРИИ ============ */
+function catRowEl(item, list) {
+  const row = document.createElement('div');
+  row.className = 'row-cat';
+
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.dataset.field = 'name';
+  name.placeholder = 'Название категории';
+  name.value = item.name || '';
+  name.addEventListener('input', () => { item.name = name.value; save(); update(); });
+
+  const amt = document.createElement('input');
+  amt.type = 'number';
+  amt.dataset.field = 'amount';
+  amt.min = '0'; amt.step = '100'; amt.placeholder = 'Сумма';
+  amt.value = item.amount ? item.amount : '';
+  amt.addEventListener('input', () => {
+    item.amount = Math.max(0, parseFloat(amt.value) || 0);
+    update();
+  });
+
+  const sel = document.createElement('select');
+  Object.entries(CAT_TYPES).forEach(([key, cfg]) => {
+    const o = document.createElement('option');
+    o.value = key;
+    o.textContent = cfg.label;
+    if ((item.type || 'other') === key) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', () => { item.type = sel.value; save(); update(); });
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'del-btn';
+  del.textContent = '×';
+  del.title = 'Удалить';
+  del.addEventListener('click', () => {
+    const i = list.indexOf(item);
+    if (i > -1) list.splice(i, 1);
+    renderCats();
+    update();
+  });
+
+  row.append(name, amt, sel, del);
+  return row;
+}
+
+function renderCats() {
+  const box = document.getElementById('catList');
+  box.innerHTML = '';
+  if (!state.otherCategories.length) {
+    box.innerHTML = '<p class="empty" style="margin-bottom:8px">Нет категорий. Добавьте ↓</p>';
+  }
+  state.otherCategories.forEach(it => box.appendChild(catRowEl(it, state.otherCategories)));
+}
+
+/* ============ СТЕК-БАР ============ */
+function renderStack(expenseM, investM, reserveM, restM) {
+  const stack = document.getElementById('stackBar');
+  const legend = document.getElementById('stackLegend');
+  stack.innerHTML = '';
+  legend.innerHTML = '';
+
+  const parts = [
+    { v: expenseM, c: 'var(--red)',    t: 'Расходы' },
+    { v: investM,  c: 'var(--green)',  t: 'Инвестиции' },
+    { v: reserveM, c: 'var(--amber)',  t: 'Резерв' },
+    { v: restM,    c: 'var(--violet)', t: 'Свободно' }
+  ].filter(p => p.v > 0);
+
+  const total = parts.reduce((s, p) => s + p.v, 0);
+  if (total <= 0) {
+    stack.innerHTML = '<div class="stack-empty">Введите доходы и расходы ↑</div>';
+    return;
+  }
+
+  parts.forEach(p => {
+    const seg = document.createElement('div');
+    seg.className = 'stack-seg';
+    seg.style.width = (p.v / total * 100) + '%';
+    seg.style.background = p.c;
+    seg.title = p.t + ': ' + fmt(p.v);
+    stack.appendChild(seg);
+
+    const li = document.createElement('div');
+    li.className = 'legend-item';
+    li.innerHTML = `<i style="background:${p.c}"></i><span>${p.t}</span><b>${fmt(p.v)}</b>`;
+    legend.appendChild(li);
+  });
+}
+
+/* ============ БАРЫ РАСХОДОВ ============ */
+function renderExpenseBars(expenseM) {
+  const list = document.getElementById('expenseBars');
+  list.innerHTML = '';
+
+  const items = state.expenses
+    .filter(e => Number(e.amount) > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  if (!items.length) {
+    list.innerHTML = '<p class="empty">Пока нет данных — заполните расходы выше, и вы увидите, куда уходит каждый рубль.</p>';
+    return;
+  }
+
+  items.forEach(e => {
+    const pct = expenseM > 0 ? (e.amount / expenseM * 100) : 0;
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-top">
+        <span>${esc(e.name) || 'Без названия'}</span>
+        <span>${fmt(e.amount)} · ${pct.toFixed(0)}%</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct.toFixed(2)}%"></div></div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+/* ============ СВОДКА ПО ЛЮДЯМ (долги) ============ */
+function renderLoanPeople() {
+  const box = document.getElementById('loanPeople');
+  if (!box) return;
+  box.innerHTML = '';
+
+  const map = new Map();
+  const keyOf = n => (String(n || '').trim().toLowerCase() || '—');
+
+  state.loans.forEach(l => {
+    const k = keyOf(l.person);
+    if (!map.has(k)) map.set(k, { name: l.person || '—', lent: 0, back: 0 });
+    map.get(k).lent += Number(l.amount) || 0;
+  });
+  state.returns.forEach(r => {
+    const k = keyOf(r.person);
+    if (!map.has(k)) map.set(k, { name: r.person || '—', lent: 0, back: 0 });
+    map.get(k).back += Number(r.amount) || 0;
+  });
+
+  const rows = [...map.values()].filter(p => p.lent > 0 || p.back > 0);
+  if (!rows.length) return;
+
+  rows.sort((a, b) => (b.lent - b.back) - (a.lent - a.back));
+
+  const wrap = document.createElement('div');
+  wrap.style.marginTop = '20px';
+  wrap.innerHTML = '<h3>👥 По людям <span class="muted-small">одолжено / вернули / остаток</span></h3>';
+
+  rows.forEach(p => {
+    const left = p.lent - p.back;
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    const color = left > 0 ? 'var(--amber)' : 'var(--green)';
+    row.innerHTML = `
+      <div class="bar-top">
+        <span class="person-tag">${esc(p.name)}</span>
+        <span>${fmt(p.lent)} → ${fmt(p.back)} · остаток <b style="color:${color}">${fmt(left)}</b></span>
+      </div>
+    `;
+    wrap.appendChild(row);
+  });
+
+  box.appendChild(wrap);
+}
+
+/* ============ РЕЗЕРВ ============ */
+function renderReserve(expenseM, reserveM) {
+  const goal = expenseM * (state.reserveMonths || 0);
+  const cur = Number(state.reserveCurrent) || 0;
+  const pct = goal > 0 ? Math.min(100, cur / goal * 100) : 0;
+  const left = Math.max(goal - cur, 0);
+
+  setText('goalVal', fmt(goal));
+  document.getElementById('goalBar').style.width = pct + '%';
+  setText('goalPct', pct.toFixed(0) + '%');
+
+  if (goal <= 0) {
+    setText('goalLeft', 'Осталось накопить: —');
+    setText('goalEta', 'Укажите расходы, чтобы рассчитать размер резерва.');
+    return;
+  }
+
+  setText('goalLeft', left > 0 ? 'Осталось накопить: ' + fmt(left) : 'Цель достигнута! 🎉');
+
+  let eta;
+  if (left <= 0) eta = 'Отличная работа — резерв собран. Можно направить деньги в инвестиции.';
+  else if (reserveM <= 0) eta = 'Поставьте процент на резерв больше 0 — и копить получится автоматически.';
+  else eta = `При ${fmt(reserveM)}/мес цель будет через ~${Math.ceil(left / reserveM)} мес.`;
+
+  setText('goalEta', eta);
+}
+
+/* ============ ТАБЛИЦА ВСЕХ ДАННЫХ ============ */
+function renderTable(incomeM, expenseM, freeM, investM, reserveM, restM, loanOut, loanBack, loanLeft, catTotals) {
+  const tbody = document.getElementById('fullTableBody');
+  tbody.innerHTML = '';
+
+  const tr = (cells, cls = '') => {
+    const row = document.createElement('tr');
+    if (cls) row.className = cls;
+    cells.forEach((c, i) => {
+      const td = document.createElement('td');
+      td.innerHTML = c;
+      if (i >= 2) td.className = 'num';
+      row.appendChild(td);
+    });
+    return row;
+  };
+
+  const groupRow = (title) => {
+    const row = document.createElement('tr');
+    row.className = 'row-group';
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    td.textContent = title;
+    row.appendChild(td);
+    return row;
+  };
+
+  /* --- ДОХОДЫ --- */
+  tbody.appendChild(groupRow('📥 Доходы'));
+  state.incomes.forEach(i => {
+    const amt = Number(i.amount) || 0;
+    const share = incomeM > 0 ? (amt / incomeM * 100) : 0;
+    tbody.appendChild(tr([
+      '<span class="badge green">Доход</span>',
+      esc(i.name) || 'Без названия',
+      fmt(amt), fmt(amt * 12), share.toFixed(1) + '%'
+    ]));
+  });
+  tbody.appendChild(tr([
+    '<b>Итого доходы</b>', '', `<b>${fmt(incomeM)}</b>`, `<b>${fmt(incomeM * 12)}</b>`, '100%'
+  ], 'row-total'));
+
+  /* --- РАСХОДЫ --- */
+  tbody.appendChild(groupRow('📤 Расходы'));
+  state.expenses.forEach(e => {
+    const amt = Number(e.amount) || 0;
+    const share = expenseM > 0 ? (amt / expenseM * 100) : 0;
+    tbody.appendChild(tr([
+      '<span class="badge red">Расход</span>',
+      esc(e.name) || 'Без названия',
+      fmt(amt), fmt(amt * 12), share.toFixed(1) + '%'
+    ]));
+  });
+  tbody.appendChild(tr([
+    '<b>Итого расходы</b>', '', `<b>${fmt(expenseM)}</b>`, `<b>${fmt(expenseM * 12)}</b>`, '100%'
+  ], 'row-total'));
+
+  /* --- ИТОГИ --- */
+  tbody.appendChild(groupRow('📊 Итоги бюджета'));
+  tbody.appendChild(tr([
+    '<span class="badge">Свободные деньги</span>',
+    'Доход минус расход',
+    `<span class="${freeM >= 0 ? 'green' : 'red'}">${fmt(freeM)}</span>`,
+    fmt(freeM * 12),
+    incomeM > 0 ? ((freeM / incomeM * 100).toFixed(1) + '% от дохода') : '—'
+  ], 'row-total'));
+
+  const saveRate = incomeM > 0 ? ((investM + reserveM) / incomeM * 100) : 0;
+  tbody.appendChild(tr([
+    '<span class="badge violet">Норма сбережений</span>',
+    'Доля дохода в инвестиции + резерв',
+    saveRate.toFixed(1) + '%', '—', '—'
+  ]));
+
+  /* --- ДОЛГИ: Я ОДОЛЖИЛ --- */
+  tbody.appendChild(groupRow('🤝 Я одолжил (мне должны)'));
+  state.loans.forEach(l => {
+    const amt = Number(l.amount) || 0;
+    const share = loanOut > 0 ? (amt / loanOut * 100) : 0;
+    tbody.appendChild(tr([
+      '<span class="badge pink">Долг</span>',
+      (esc(l.person) || '—') + (l.date ? ` · ${fmtDate(l.date)}` : ''),
+      fmt(amt), '—', share.toFixed(1) + '%'
+    ]));
+  });
+  tbody.appendChild(tr([
+    '<b>Итого одолжено</b>', '', `<b>${fmt(loanOut)}</b>`, '—', '100%'
+  ], 'row-total'));
+
+  /* --- ДОЛГИ: МНЕ ВЕРНУЛИ --- */
+  tbody.appendChild(groupRow('📥 Мне вернули (долги закрыты)'));
+  state.returns.forEach(r => {
+    const amt = Number(r.amount) || 0;
+    const share = loanBack > 0 ? (amt / loanBack * 100) : 0;
+    tbody.appendChild(tr([
+      '<span class="badge green">Возврат</span>',
+      (esc(r.person) || '—') + (r.date ? ` · ${fmtDate(r.date)}` : ''),
+      fmt(amt), '—', share.toFixed(1) + '%'
+    ]));
+  });
+  tbody.appendChild(tr([
+    '<b>Итого вернули</b>', '', `<b>${fmt(loanBack)}</b>`, '—', '100%'
+  ], 'row-total'));
+
+  tbody.appendChild(tr([
+    '<span class="badge amber">Мне ещё должны</span>',
+    'Одолжено минус возвращено',
+    fmt(loanLeft), '—', loanOut > 0 ? ((loanLeft / loanOut * 100).toFixed(1) + '% от одолженного') : '—'
+  ], 'row-total'));
+
+  /* --- ДРУГИЕ КАТЕГОРИИ --- */
+  if (state.otherCategories.length) {
+    tbody.appendChild(groupRow('📁 Другие категории'));
+    state.otherCategories.forEach(c => {
+      const amt = Number(c.amount) || 0;
+      const cfg = CAT_TYPES[c.type] || CAT_TYPES.other;
+      tbody.appendChild(tr([
+        `<span class="badge ${cfg.color}">${cfg.label}</span>`,
+        esc(c.name) || 'Без названия',
+        fmt(amt), fmt(amt * 12), '—'
+      ]));
+    });
+    Object.entries(catTotals).forEach(([type, total]) => {
+      if (total <= 0) return;
+      const cfg = CAT_TYPES[type] || CAT_TYPES.other;
+      tbody.appendChild(tr([
+        `<b>Итого «${cfg.label}»</b>`, '', `<b>${fmt(total)}</b>`, `<b>${fmt(total * 12)}</b>`, '—'
+      ], 'row-total'));
+    });
+  }
+
+  /* --- РАСПРЕДЕЛЕНИЕ --- */
+  tbody.appendChild(groupRow('🎯 Распределение свободных денег'));
+  const base = Math.max(freeM, 0);
+  tbody.appendChild(tr([
+    '<span class="badge green">📈 Инвестиции</span>',
+    `${state.investPercent}% от свободных`,
+    fmt(investM), fmt(investM * 12),
+    base > 0 ? (state.investPercent + '%') : '—'
+  ]));
+  tbody.appendChild(tr([
+    '<span class="badge amber">🛡️ Резерв</span>',
+    `${state.reservePercent}% от свободных`,
+    fmt(reserveM), fmt(reserveM * 12),
+    base > 0 ? (state.reservePercent + '%') : '—'
+  ]));
+  tbody.appendChild(tr([
+    '<span class="badge violet">🛒 Свободно</span>',
+    `${100 - state.investPercent - state.reservePercent}% от свободных`,
+    fmt(restM), fmt(restM * 12),
+    base > 0 ? ((100 - state.investPercent - state.reservePercent) + '%') : '—'
+  ]));
+
+  /* --- НАСТРОЙКИ --- */
+  tbody.appendChild(groupRow('⚙️ Настройки'));
+  const goal = expenseM * (state.reserveMonths || 0);
+  const cur = Number(state.reserveCurrent) || 0;
+  const goalPct = goal > 0 ? Math.min(100, cur / goal * 100) : 0;
+
+  tbody.appendChild(tr([
+    'Цель резерва', `${state.reserveMonths} мес. расходов`,
+    fmt(goal), '—', '—'
+  ], 'row-settings'));
+  tbody.appendChild(tr([
+    'Уже накоплено (резерв)', 'В резерве сейчас',
+    fmt(cur), '—', goalPct.toFixed(1) + '% от цели'
+  ], 'row-settings'));
+  tbody.appendChild(tr([
+    'Инвестиции', 'Процент от свободных денег',
+    state.investPercent + '%', '—', '—'
+  ], 'row-settings'));
+  tbody.appendChild(tr([
+    'Резерв', 'Процент от свободных денег',
+    state.reservePercent + '%', '—', '—'
+  ], 'row-settings'));
+}
+
+/* ============ ГЛАВНЫЙ РАСЧЁТ ============ */
+function update() {
+  const incomeM  = state.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  const expenseM = state.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const freeM    = incomeM - expenseM;
+  const base     = Math.max(freeM, 0);
+
+  const investM  = base * state.investPercent / 100;
+  const reserveM = base * state.reservePercent / 100;
+  const restM    = base - investM - reserveM;
+
+  const loanOut  = state.loans.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const loanBack = state.returns.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const loanLeft = Math.max(loanOut - loanBack, 0);
+
+  /* статистика */
+  setText('stIncomeM', fmt(incomeM));
+  setText('stIncomeY', 'за год: ' + fmt(incomeM * 12));
+  setText('stExpenseM', fmt(expenseM));
+  setText('stExpenseY', 'за год: ' + fmt(expenseM * 12));
+  setText('stFreeM', fmt(freeM));
+  document.getElementById('stFreeM').style.color = freeM >= 0 ? 'var(--blue)' : 'var(--red)';
+  setText('stFreeY', 'за год: ' + fmt(freeM * 12));
+
+  const rate = incomeM > 0 ? (investM + reserveM) / incomeM * 100 : 0;
+  setText('stRate', rate.toFixed(0) + '%');
+
+  /* списки */
+  setText('incomeTotal', fmt(incomeM));
+  setText('expenseTotal', fmt(expenseM));
+  setText('loanOutTotal', fmt(loanOut));
+  setText('returnInTotal', fmt(loanBack));
+
+  /* долговая сводка */
+  setText('loanTotalOut', fmt(loanOut));
+  setText('loanTotalBack', fmt(loanBack));
+  setText('loanOutstanding', fmt(loanLeft));
+  setText('loanCountOut', state.loans.length + ' ' + plural(state.loans.length, ['запись','записи','записей']));
+  setText('loanCountBack', state.returns.length + ' ' + plural(state.returns.length, ['запись','записи','записей']));
+
+  /* распределение */
+  setText('investPctLabel', state.investPercent + '%');
+  setText('reservePctLabel', state.reservePercent + '%');
+  setText('restPctLabel', (100 - state.investPercent - state.reservePercent) + '%');
+  document.getElementById('restBar').style.width = (100 - state.investPercent - state.reservePercent) + '%';
+
+  setText('invM', fmt(investM));
+  setText('invY', 'в год: ' + fmt(investM * 12));
+  setText('resM', fmt(reserveM));
+  setText('resY', 'в год: ' + fmt(reserveM * 12));
+  setText('restM', fmt(restM));
+  setText('restY', 'в год: ' + fmt(restM * 12));
+
+  document.getElementById('warn').style.display = freeM < 0 ? 'block' : 'none';
+
+  /* сводка по другим категориям */
+  const catTotals = { asset: 0, goal: 0, debt: 0, other: 0 };
+  state.otherCategories.forEach(c => {
+    const t = CAT_TYPES[c.type] ? c.type : 'other';
+    catTotals[t] += Number(c.amount) || 0;
+  });
+
+  const catBox = document.getElementById('catSummary');
+  catBox.innerHTML = '';
+  Object.entries(catTotals).forEach(([type, total]) => {
+    const cfg = CAT_TYPES[type];
+    const el = document.createElement('div');
+    el.className = 'mini';
+    el.innerHTML = `
+      <span class="mini-label">${cfg.label}</span>
+      <span class="mini-val ${cfg.color}">${fmt(total)}</span>
+      <span class="mini-hint">в год: ${fmt(total * 12)}</span>
+    `;
+    catBox.appendChild(el);
+  });
+
+  /* блоки */
+  renderStack(expenseM, investM, reserveM, restM);
+  renderExpenseBars(expenseM);
+  renderReserve(expenseM, reserveM);
+  renderLoanPeople();
+  renderTable(incomeM, expenseM, freeM, investM, reserveM, restM, loanOut, loanBack, loanLeft, catTotals);
+
+  save();
+}
+
+/* ============ СКЛОНЕНИЕ ============ */
+function plural(n, forms) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return forms[2];
+  if (b > 1 && b < 5) return forms[1];
+  if (b === 1) return forms[0];
+  return forms[2];
+}
+
+/* ============ ЭКСПОРТ ============ */
+function exportData() {
+  const data = {
+    _app: 'money-calc',
+    _version: 2,
+    _exported: new Date().toISOString(),
+    incomes: state.incomes,
+    expenses: state.expenses,
+    loans: state.loans,
+    returns: state.returns,
+    otherCategories: state.otherCategories,
+    investPercent: state.investPercent,
+    reservePercent: state.reservePercent,
+    reserveMonths: state.reserveMonths,
+    reserveCurrent: state.reserveCurrent
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  a.href = url;
+  a.download = `money-calc-v2-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('✅ Файл сохранён', 'ok');
+}
+
+/* ============ ИМПОРТ ============ */
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed || typeof parsed !== 'object') throw new Error('Неверный формат');
+
+      const next = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+      const mapSimple = (arr) => Array.isArray(arr)
+        ? arr.map(i => ({ name: String(i.name || ''), amount: Math.max(0, Number(i.amount) || 0) }))
+        : [];
+
+      const mapPeople = (arr) => Array.isArray(arr)
+        ? arr.map(i => ({
+            person: String(i.person || ''),
+            amount: Math.max(0, Number(i.amount) || 0),
+            date: String(i.date || '')
+          }))
+        : [];
+
+      next.incomes  = mapSimple(parsed.incomes);
+      next.expenses = mapSimple(parsed.expenses);
+      next.loans    = mapPeople(parsed.loans);
+      next.returns  = mapPeople(parsed.returns);
+
+      next.otherCategories = Array.isArray(parsed.otherCategories)
+        ? parsed.otherCategories.map(c => ({
+            name: String(c.name || ''),
+            amount: Math.max(0, Number(c.amount) || 0),
+            type: CAT_TYPES[c.type] ? c.type : 'other'
+          }))
+        : [];
+
+      if (typeof parsed.investPercent === 'number')  next.investPercent  = Math.min(100, Math.max(0, parsed.investPercent));
+      if (typeof parsed.reservePercent === 'number') next.reservePercent = Math.min(100, Math.max(0, parsed.reservePercent));
+      if (next.investPercent + next.reservePercent > 100) next.reservePercent = 100 - next.investPercent;
+      if (typeof parsed.reserveMonths === 'number')  next.reserveMonths  = Math.min(36, Math.max(1, Math.round(parsed.reserveMonths)));
+      if (typeof parsed.reserveCurrent === 'number') next.reserveCurrent = Math.max(0, parsed.reserveCurrent);
+
+      state = next;
+      init();
+      showToast('✅ Данные загружены', 'ok');
+    } catch (err) {
+      showToast('❌ Не удалось прочитать файл', 'err');
+    }
+  };
+  reader.onerror = () => showToast('❌ Ошибка чтения файла', 'err');
+  reader.readAsText(file);
+}
+
+/* ============ СОБЫТИЯ ============ */
+const investRange  = document.getElementById('investRange');
+const reserveRange = document.getElementById('reserveRange');
+
+investRange.addEventListener('input', () => {
+  state.investPercent = Number(investRange.value);
+  if (state.investPercent + state.reservePercent > 100) {
+    state.reservePercent = 100 - state.investPercent;
+    reserveRange.value = state.reservePercent;
+  }
+  update();
+});
+
+reserveRange.addEventListener('input', () => {
+  state.reservePercent = Number(reserveRange.value);
+  if (state.investPercent + state.reservePercent > 100) {
+    state.investPercent = 100 - state.reservePercent;
+    investRange.value = state.investPercent;
+  }
+  update();
+});
+
+document.getElementById('addIncome').addEventListener('click', () => {
+  state.incomes.push({ name: '', amount: 0 });
+  renderIncomes(); update();
+});
+
+document.getElementById('addExpense').addEventListener('click', () => {
+  state.expenses.push({ name: '', amount: 0 });
+  renderExpenses(); update();
+});
+
+document.getElementById('addLoan').addEventListener('click', () => {
+  state.loans.push({ person: '', amount: 0, date: '' });
+  renderLoans(); update();
+});
+
+document.getElementById('addReturn').addEventListener('click', () => {
+  state.returns.push({ person: '', amount: 0, date: '' });
+  renderReturns(); update();
+});
+
+document.getElementById('addCat').addEventListener('click', () => {
+  state.otherCategories.push({ name: '', amount: 0, type: 'other' });
+  renderCats(); update();
+});
+
+document.getElementById('reserveMonths').addEventListener('input', e => {
+  state.reserveMonths = Math.max(1, Math.min(36, parseInt(e.target.value) || 1));
+  update();
+});
+
+document.getElementById('reserveCurrent').addEventListener('input', e => {
+  state.reserveCurrent = Math.max(0, parseFloat(e.target.value) || 0);
+  update();
+});
+
+document.getElementById('exportBtn').addEventListener('click', exportData);
+
+const importFile = document.getElementById('importFile');
+document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) importData(f);
+  importFile.value = '';
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('Удалить все данные и начать заново?')) return;
+  localStorage.removeItem(KEY);
+  state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  init();
+  showToast('Сброшено', 'ok');
+});
+
+/* ============ ИНИЦИАЛИЗАЦИЯ ============ */
+function init() {
+  renderIncomes();
+  renderExpenses();
+  renderLoans();
+  renderReturns();
+  renderCats();
+
+  investRange.value = state.investPercent;
+  reserveRange.value = state.reservePercent;
+  document.getElementById('reserveMonths').value = state.reserveMonths;
+  document.getElementById('reserveCurrent').value = state.reserveCurrent || '';
+
+  update();
+}
+
+init();
+</script>
+</body>
+</html>
