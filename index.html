@@ -24,11 +24,14 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:16p
 header h1{font-size:clamp(20px,4vw,30px);font-weight:700;letter-spacing:-.5px}
 header p{color:var(--muted);margin-top:8px;font-size:14px;max-width:640px;line-height:1.5}
 
+.header-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
 .ghost-btn{
   background:transparent;border:1px solid var(--border);color:var(--muted);
-  padding:9px 16px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;transition:.15s;
+  padding:9px 14px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;transition:.15s;
+  white-space:nowrap;
 }
-.ghost-btn:hover{border-color:var(--red);color:var(--red)}
+.ghost-btn:hover{border-color:var(--blue);color:var(--blue)}
+.ghost-btn.danger:hover{border-color:var(--red);color:var(--red)}
 
 .card{
   background:linear-gradient(180deg,var(--card),var(--card2));
@@ -139,6 +142,43 @@ input[type=range]::-moz-range-thumb{
   background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);color:#fca5a5;
 }
 
+/* ---- таблица ---- */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
+thead{background:#0b111e}
+thead th{
+  text-align:left;padding:12px 14px;font-weight:600;color:var(--muted);
+  font-size:12px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+tbody td{padding:11px 14px;border-bottom:1px solid #1d273c;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(96,165,250,.05)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.row-group{background:#111a2a}
+.row-group td{font-weight:700;color:var(--blue);text-transform:uppercase;font-size:11px;letter-spacing:.5px}
+.row-total td{background:#101929;font-weight:700}
+.row-total td:first-child{color:var(--text)}
+.row-settings td:first-child{color:var(--muted)}
+.badge{
+  display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;
+  background:rgba(96,165,250,.15);color:var(--blue);font-weight:600;
+}
+.badge.green{background:rgba(52,211,153,.15);color:var(--green)}
+.badge.amber{background:rgba(251,191,36,.15);color:var(--amber)}
+.badge.violet{background:rgba(167,139,250,.15);color:var(--violet)}
+.badge.red{background:rgba(248,113,113,.15);color:var(--red)}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#1b2436;border:1px solid var(--border);color:var(--text);
+  padding:12px 22px;border-radius:12px;font-size:14px;opacity:0;
+  transition:.3s;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:99;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(52,211,153,.5)}
+.toast.err{border-color:rgba(248,113,113,.5)}
+
 @media (max-width:520px){
   .row{grid-template-columns:1fr 100px 34px}
   body{padding:16px 12px 50px}
@@ -153,7 +193,12 @@ input[type=range]::-moz-range-thumb{
       <h1>💰 Мой финансовый калькулятор</h1>
       <p>Считайте доходы и расходы, находите «дыры» в бюджете и автоматически делите свободные деньги на инвестиции и резерв «на чёрный день». Всё сохраняется в вашем браузере.</p>
     </div>
-    <button class="ghost-btn" id="resetBtn">Сбросить всё</button>
+    <div class="header-actions">
+      <button class="ghost-btn" id="exportBtn">💾 Экспорт</button>
+      <button class="ghost-btn" id="importBtn">📂 Импорт</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <button class="ghost-btn danger" id="resetBtn">Сбросить</button>
+    </div>
   </header>
 
   <!-- СТАТИСТИКА -->
@@ -272,7 +317,28 @@ input[type=range]::-moz-range-thumb{
     </div>
   </div>
 
+  <!-- ТАБЛИЦА ВСЕХ ДАННЫХ -->
+  <div class="card">
+    <h2>📋 Таблица всех данных и настроек <span class="muted-small">все суммы в ₽</span></h2>
+    <div class="table-wrap">
+      <table id="fullTable">
+        <thead>
+          <tr>
+            <th>Раздел</th>
+            <th>Название</th>
+            <th class="num">Сумма / мес</th>
+            <th class="num">За год</th>
+            <th class="num">Доля</th>
+          </tr>
+        </thead>
+        <tbody id="fullTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 /* ============ ХРАНИЛИЩЕ ============ */
@@ -320,8 +386,19 @@ function save() {
 
 /* ============ УТИЛИТЫ ============ */
 const fmt = n => new Intl.NumberFormat('ru-RU').format(Math.round(n || 0)) + ' ₽';
+const fmtNum = n => new Intl.NumberFormat('ru-RU').format(Math.round(n || 0));
 const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
 const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ============ УВЕДОМЛЕНИЕ ============ */
+let toastTimer = null;
+function showToast(msg, type = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast ' + type; }, 2400);
+}
 
 /* ============ ОТРИСОВКА СПИСКОВ ============ */
 function rowEl(item, list, kind) {
@@ -332,7 +409,7 @@ function rowEl(item, list, kind) {
   name.type = 'text';
   name.placeholder = kind === 'income' ? 'Название дохода' : 'Название расхода';
   name.value = item.name || '';
-  name.addEventListener('input', () => { item.name = name.value; save(); });
+  name.addEventListener('input', () => { item.name = name.value; save(); update(); });
 
   const amt = document.createElement('input');
   amt.type = 'number';
@@ -464,6 +541,175 @@ function renderReserve(expenseM, reserveM) {
   setText('goalEta', eta);
 }
 
+/* ============ ТАБЛИЦА ВСЕХ ДАННЫХ ============ */
+function renderTable(incomeM, expenseM, freeM, investM, reserveM, restM) {
+  const tbody = document.getElementById('fullTableBody');
+  tbody.innerHTML = '';
+
+  const tr = (cells, cls = '') => {
+    const row = document.createElement('tr');
+    if (cls) row.className = cls;
+    cells.forEach((c, i) => {
+      const td = document.createElement('td');
+      td.innerHTML = c;
+      if (i >= 2) td.className = 'num';
+      row.appendChild(td);
+    });
+    return row;
+  };
+
+  const groupRow = (title) => {
+    const row = document.createElement('tr');
+    row.className = 'row-group';
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    td.textContent = title;
+    row.appendChild(td);
+    return row;
+  };
+
+  /* --- ДОХОДЫ --- */
+  tbody.appendChild(groupRow('📥 Доходы'));
+
+  state.incomes.forEach(i => {
+    const amt = Number(i.amount) || 0;
+    const share = incomeM > 0 ? (amt / incomeM * 100) : 0;
+    tbody.appendChild(tr([
+      '<span class="badge green">Доход</span>',
+      esc(i.name) || 'Без названия',
+      fmt(amt),
+      fmt(amt * 12),
+      share.toFixed(1) + '%'
+    ]));
+  });
+
+  tbody.appendChild(tr([
+    '<b>Итого доходы</b>', '', `<b>${fmt(incomeM)}</b>`, `<b>${fmt(incomeM * 12)}</b>`, '100%'
+  ], 'row-total'));
+
+  /* --- РАСХОДЫ --- */
+  tbody.appendChild(groupRow('📤 Расходы'));
+
+  state.expenses.forEach(e => {
+    const amt = Number(e.amount) || 0;
+    const share = expenseM > 0 ? (amt / expenseM * 100) : 0;
+    tbody.appendChild(tr([
+      '<span class="badge red">Расход</span>',
+      esc(e.name) || 'Без названия',
+      fmt(amt),
+      fmt(amt * 12),
+      share.toFixed(1) + '%'
+    ]));
+  });
+
+  tbody.appendChild(tr([
+    '<b>Итого расходы</b>', '', `<b>${fmt(expenseM)}</b>`, `<b>${fmt(expenseM * 12)}</b>`, '100%'
+  ], 'row-total'));
+
+  /* --- ИТОГИ --- */
+  tbody.appendChild(groupRow('📊 Итоги бюджета'));
+
+  tbody.appendChild(tr([
+    '<span class="badge">Свободные деньги</span>',
+    'Доход минус расход',
+    `<span class="${freeM >= 0 ? 'green' : 'red'}">${fmt(freeM)}</span>`,
+    fmt(freeM * 12),
+    incomeM > 0 ? ((freeM / incomeM * 100).toFixed(1) + '% от дохода') : '—'
+  ], 'row-total'));
+
+  const saveRate = incomeM > 0 ? ((investM + reserveM) / incomeM * 100) : 0;
+  tbody.appendChild(tr([
+    '<span class="badge violet">Норма сбережений</span>',
+    'Доля дохода в инвестиции + резерв',
+    saveRate.toFixed(1) + '%',
+    '—',
+    '—'
+  ]));
+
+  /* --- РАСПРЕДЕЛЕНИЕ СВОБОДНЫХ ДЕНЕГ --- */
+  tbody.appendChild(groupRow('🎯 Распределение свободных денег'));
+
+  const base = Math.max(freeM, 0);
+
+  tbody.appendChild(tr([
+    '<span class="badge green">📈 Инвестиции</span>',
+    `${state.investPercent}% от свободных`,
+    fmt(investM),
+    fmt(investM * 12),
+    base > 0 ? (state.investPercent + '%') : '—'
+  ]));
+
+  tbody.appendChild(tr([
+    '<span class="badge amber">🛡️ Резерв</span>',
+    `${state.reservePercent}% от свободных`,
+    fmt(reserveM),
+    fmt(reserveM * 12),
+    base > 0 ? (state.reservePercent + '%') : '—'
+  ]));
+
+  tbody.appendChild(tr([
+    '<span class="badge violet">🛒 Свободно</span>',
+    `${100 - state.investPercent - state.reservePercent}% от свободных`,
+    fmt(restM),
+    fmt(restM * 12),
+    base > 0 ? ((100 - state.investPercent - state.reservePercent) + '%') : '—'
+  ]));
+
+  /* --- НАСТРОЙКИ РЕЗЕРВА --- */
+  tbody.appendChild(groupRow('🛡️ Настройки резерва'));
+
+  const goal = expenseM * (state.reserveMonths || 0);
+  const cur = Number(state.reserveCurrent) || 0;
+  const goalPct = goal > 0 ? Math.min(100, cur / goal * 100) : 0;
+
+  tbody.appendChild(tr([
+    'Цель резерва',
+    `${state.reserveMonths} мес. расходов`,
+    fmt(goal),
+    '—',
+    '—'
+  ], 'row-settings'));
+
+  tbody.appendChild(tr([
+    'Уже накоплено',
+    'В резерве сейчас',
+    fmt(cur),
+    '—',
+    goalPct.toFixed(1) + '% от цели'
+  ], 'row-settings'));
+
+  tbody.appendChild(tr([
+    'Осталось накопить',
+    reserveM > 0 ? `При ${fmt(reserveM)}/мес` : 'Укажите % на резерв',
+    fmt(Math.max(goal - cur, 0)),
+    '—',
+    '—'
+  ], 'row-settings'));
+
+  /* --- НАСТРОЙКИ ПРОЦЕНТОВ --- */
+  tbody.appendChild(groupRow('⚙️ Настройки распределения'));
+
+  tbody.appendChild(tr([
+    'Инвестиции', 'Процент от свободных денег',
+    state.investPercent + '%', '—', '—'
+  ], 'row-settings'));
+
+  tbody.appendChild(tr([
+    'Резерв', 'Процент от свободных денег',
+    state.reservePercent + '%', '—', '—'
+  ], 'row-settings'));
+
+  tbody.appendChild(tr([
+    'Свободно', 'Процент от свободных денег',
+    (100 - state.investPercent - state.reservePercent) + '%', '—', '—'
+  ], 'row-settings'));
+
+  tbody.appendChild(tr([
+    'Горизонт резерва', 'Месяцев расходов',
+    state.reserveMonths + ' мес.', '—', '—'
+  ], 'row-settings'));
+}
+
 /* ============ ГЛАВНЫЙ РАСЧЁТ ============ */
 function update() {
   const incomeM  = state.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
@@ -510,8 +756,69 @@ function update() {
   renderStack(expenseM, investM, reserveM, restM);
   renderExpenseBars(expenseM);
   renderReserve(expenseM, reserveM);
+  renderTable(incomeM, expenseM, freeM, investM, reserveM, restM);
 
   save();
+}
+
+/* ============ ЭКСПОРТ ============ */
+function exportData() {
+  const data = {
+    _app: 'money-calc',
+    _version: 1,
+    _exported: new Date().toISOString(),
+    incomes: state.incomes,
+    expenses: state.expenses,
+    investPercent: state.investPercent,
+    reservePercent: state.reservePercent,
+    reserveMonths: state.reserveMonths,
+    reserveCurrent: state.reserveCurrent
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  a.href = url;
+  a.download = `money-calc-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('✅ Файл сохранён', 'ok');
+}
+
+/* ============ ИМПОРТ ============ */
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.incomes) || !Array.isArray(parsed.expenses)) {
+        throw new Error('Неверный формат');
+      }
+
+      const next = JSON.parse(JSON.stringify(DEFAULT_STATE));
+      next.incomes  = parsed.incomes.map(i => ({ name: String(i.name || ''), amount: Math.max(0, Number(i.amount) || 0) }));
+      next.expenses = parsed.expenses.map(x => ({ name: String(x.name || ''), amount: Math.max(0, Number(x.amount) || 0) }));
+
+      if (typeof parsed.investPercent === 'number')  next.investPercent  = Math.min(100, Math.max(0, parsed.investPercent));
+      if (typeof parsed.reservePercent === 'number') next.reservePercent = Math.min(100, Math.max(0, parsed.reservePercent));
+      if (next.investPercent + next.reservePercent > 100) next.reservePercent = 100 - next.investPercent;
+      if (typeof parsed.reserveMonths === 'number')  next.reserveMonths  = Math.min(36, Math.max(1, Math.round(parsed.reserveMonths)));
+      if (typeof parsed.reserveCurrent === 'number') next.reserveCurrent = Math.max(0, parsed.reserveCurrent);
+
+      state = next;
+      init();
+      showToast('✅ Данные загружены', 'ok');
+    } catch (err) {
+      showToast('❌ Не удалось прочитать файл', 'err');
+    }
+  };
+  reader.onerror = () => showToast('❌ Ошибка чтения файла', 'err');
+  reader.readAsText(file);
 }
 
 /* ============ СОБЫТИЯ ============ */
@@ -558,11 +865,25 @@ document.getElementById('reserveCurrent').addEventListener('input', e => {
   update();
 });
 
+/* экспорт */
+document.getElementById('exportBtn').addEventListener('click', exportData);
+
+/* импорт */
+const importFile = document.getElementById('importFile');
+document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) importData(f);
+  importFile.value = '';
+});
+
+/* сброс */
 document.getElementById('resetBtn').addEventListener('click', () => {
   if (!confirm('Удалить все данные и начать заново?')) return;
   localStorage.removeItem(KEY);
   state = JSON.parse(JSON.stringify(DEFAULT_STATE));
   init();
+  showToast('Сброшено', 'ok');
 });
 
 /* ============ ИНИЦИАЛИЗАЦИЯ ============ */
