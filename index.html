@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мой финансовый калькулятор — доход, расход, инвестиции, резерв</title>
+<style>
+:root{
+  --bg:#0e1320; --card:#161e2e; --card2:#1b2436; --border:#25304a;
+  --text:#e9eefb; --muted:#8a97b1;
+  --green:#34d399; --red:#f87171; --blue:#60a5fa; --amber:#fbbf24; --violet:#a78bfa;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+  background:radial-gradient(1200px 600px at 10% -10%, #1b2a4a 0%, transparent 60%), var(--bg);
+  color:var(--text); min-height:100vh; padding:24px 16px 60px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+header h1{font-size:clamp(20px,4vw,30px);font-weight:700;letter-spacing:-.5px}
+header p{color:var(--muted);margin-top:8px;font-size:14px;max-width:640px;line-height:1.5}
+
+.ghost-btn{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  padding:9px 16px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;transition:.15s;
+}
+.ghost-btn:hover{border-color:var(--red);color:var(--red)}
+
+.card{
+  background:linear-gradient(180deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:var(--radius);padding:18px;
+}
+.card h2{font-size:16px;font-weight:600;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.muted-small{font-size:12px;color:var(--muted);font-weight:400}
+
+/* ---- статистика ---- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.stat .label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+.stat .value{font-size:clamp(19px,3vw,25px);font-weight:700;display:block;letter-spacing:-.5px}
+.stat .hint{font-size:12px;color:var(--muted);display:block;margin-top:5px}
+
+/* ---- сетка ---- */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+
+/* ---- строки ввода ---- */
+.row{display:grid;grid-template-columns:1fr 125px 36px;gap:8px;margin-bottom:8px;align-items:center}
+input[type=text],input[type=number]{
+  width:100%;background:#0d1424;border:1px solid var(--border);color:var(--text);
+  padding:10px 12px;border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:.15s;
+}
+input[type=text]::placeholder,input[type=number]::placeholder{color:#4d5b78}
+input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(96,165,250,.14)}
+input[type=number]{text-align:right;-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+.del-btn{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:10px;height:39px;cursor:pointer;font-size:18px;line-height:1;transition:.15s;
+}
+.del-btn:hover{background:rgba(248,113,113,.12);color:var(--red);border-color:rgba(248,113,113,.4)}
+
+.add-btn{
+  width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--border);
+  background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;font-size:14px;transition:.15s;
+}
+.add-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+.total-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-top:12px;margin-top:10px;border-top:1px solid var(--border);font-weight:600;font-size:15px;
+}
+
+/* ---- слайдеры ---- */
+.slider-row{margin-bottom:18px}
+.slider-head{display:flex;justify-content:space-between;font-size:14px;margin-bottom:9px}
+.slider-head span:last-child{font-weight:700;color:var(--text)}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:3px;
+  background:#25304a;outline:none;--c:var(--blue);
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--c);cursor:pointer;border:3px solid #0e1320;box-shadow:0 0 0 1px var(--c);
+}
+input[type=range]::-moz-range-thumb{
+  width:16px;height:16px;border-radius:50%;background:var(--c);
+  cursor:pointer;border:3px solid #0e1320;box-shadow:0 0 0 1px var(--c);
+}
+.range-green{--c:var(--green)}
+.range-amber{--c:var(--amber)}
+
+.mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:18px}
+.mini{background:#0d1424;border:1px solid var(--border);border-radius:12px;padding:12px}
+.mini-label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+.mini-val{font-size:18px;font-weight:700;display:block;letter-spacing:-.3px}
+.mini-hint{font-size:11px;color:var(--muted);display:block;margin-top:4px}
+.green{color:var(--green)} .amber{color:var(--amber)} .violet{color:var(--violet)}
+.red{color:var(--red)} .blue{color:var(--blue)}
+
+/* ---- стек-бар ---- */
+.stack-bar{
+  display:flex;height:28px;border-radius:9px;overflow:hidden;
+  background:#0a1020;border:1px solid var(--border);margin-bottom:16px;
+}
+.stack-seg{transition:width .35s ease;min-width:0}
+.stack-empty{width:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.legend-item i{width:10px;height:10px;border-radius:3px;flex:none}
+.legend-item b{color:var(--text);margin-left:auto;font-weight:600;font-size:13px}
+
+/* ---- бары расходов ---- */
+.bar-row{margin-bottom:13px}
+.bar-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--muted);gap:10px}
+.bar-top span:first-child{color:var(--text)}
+.bar-track{height:8px;background:#0a1020;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#f87171,#fb923c);transition:width .35s ease}
+.empty{color:var(--muted);font-size:13px}
+
+/* ---- резерв ---- */
+.field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.field{display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--muted)}
+.goal-box{background:#0b111e;border:1px solid var(--border);border-radius:12px;padding:15px}
+.goal-line{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:9px;align-items:center;gap:10px}
+.goal-line:last-child{margin-bottom:0}
+.goal-line strong{color:var(--text);font-size:16px;font-weight:700}
+.progress{height:11px;background:#060a12;border-radius:6px;overflow:hidden;border:1px solid var(--border);margin-bottom:11px}
+.progress-fill{height:100%;border-radius:6px;transition:width .4s ease}
+
+/* ---- предупреждение ---- */
+.warn{
+  display:none;margin-top:14px;padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.5;
+  background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);color:#fca5a5;
+}
+
+@media (max-width:520px){
+  .row{grid-template-columns:1fr 100px 34px}
+  body{padding:16px 12px 50px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>💰 Мой финансовый калькулятор</h1>
+      <p>Считайте доходы и расходы, находите «дыры» в бюджете и автоматически делите свободные деньги на инвестиции и резерв «на чёрный день». Всё сохраняется в вашем браузере.</p>
+    </div>
+    <button class="ghost-btn" id="resetBtn">Сбросить всё</button>
+  </header>
+
+  <!-- СТАТИСТИКА -->
+  <section class="stats">
+    <div class="card stat">
+      <span class="label">Доход в месяц</span>
+      <span class="value green" id="stIncomeM">0 ₽</span>
+      <span class="hint" id="stIncomeY">за год: 0 ₽</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Расход в месяц</span>
+      <span class="value red" id="stExpenseM">0 ₽</span>
+      <span class="hint" id="stExpenseY">за год: 0 ₽</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Свободные деньги / мес</span>
+      <span class="value blue" id="stFreeM">0 ₽</span>
+      <span class="hint" id="stFreeY">за год: 0 ₽</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Норма сбережений</span>
+      <span class="value violet" id="stRate">0%</span>
+      <span class="hint">доля дохода, которую вы сохраняете</span>
+    </div>
+  </section>
+
+  <!-- ДОХОДЫ И РАСХОДЫ -->
+  <div class="grid2">
+    <div class="card">
+      <h2>📥 Доходы <span class="muted-small">в месяц</span></h2>
+      <div id="incomeList"></div>
+      <button class="add-btn" id="addIncome">+ Добавить доход</button>
+      <div class="total-row"><span>Итого доход</span><span class="green" id="incomeTotal">0 ₽</span></div>
+    </div>
+
+    <div class="card">
+      <h2>📤 Расходы <span class="muted-small">в месяц</span></h2>
+      <div id="expenseList"></div>
+      <button class="add-btn" id="addExpense">+ Добавить расход</button>
+      <div class="total-row"><span>Итого расход</span><span class="red" id="expenseTotal">0 ₽</span></div>
+    </div>
+  </div>
+
+  <!-- РАСПРЕДЕЛЕНИЕ -->
+  <div class="card">
+    <h2>🎯 Куда направить свободные деньги</h2>
+
+    <div class="slider-row">
+      <div class="slider-head"><span>📈 Инвестиции</span><span id="investPctLabel">30%</span></div>
+      <input type="range" id="investRange" min="0" max="100" step="5" value="30" class="range-green">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-head"><span>🛡️ Резерв «на чёрный день»</span><span id="reservePctLabel">20%</span></div>
+      <input type="range" id="reserveRange" min="0" max="100" step="5" value="20" class="range-amber">
+    </div>
+
+    <div class="slider-row" style="margin-bottom:0">
+      <div class="slider-head"><span>🛒 Свободно (траты / цели)</span><span id="restPctLabel">50%</span></div>
+      <div class="progress" style="margin-bottom:0"><div class="progress-fill" id="restBar" style="background:var(--violet);width:50%"></div></div>
+    </div>
+
+    <div class="mini-grid">
+      <div class="mini">
+        <span class="mini-label">📈 Инвестиции / мес</span>
+        <span class="mini-val green" id="invM">0 ₽</span>
+        <span class="mini-hint" id="invY">в год: 0 ₽</span>
+      </div>
+      <div class="mini">
+        <span class="mini-label">🛡️ Резерв / мес</span>
+        <span class="mini-val amber" id="resM">0 ₽</span>
+        <span class="mini-hint" id="resY">в год: 0 ₽</span>
+      </div>
+      <div class="mini">
+        <span class="mini-label">🛒 Остаток / мес</span>
+        <span class="mini-val violet" id="restM">0 ₽</span>
+        <span class="mini-hint" id="restY">в год: 0 ₽</span>
+      </div>
+    </div>
+
+    <div class="warn" id="warn">
+      ⚠️ Расходы больше доходов! Сначала уберите лишние траты или увеличьте доход — распределять пока нечего.
+    </div>
+  </div>
+
+  <!-- КУДА УХОДЯТ ДЕНЬГИ -->
+  <div class="card">
+    <h2>🔍 Куда уходят деньги</h2>
+    <div class="stack-bar" id="stackBar"></div>
+    <div class="legend" id="stackLegend"></div>
+
+    <h2 style="margin-top:24px">📊 Расходы по категориям</h2>
+    <div id="expenseBars"></div>
+  </div>
+
+  <!-- РЕЗЕРВ -->
+  <div class="card">
+    <h2>🛡️ Резерв «на чёрный день»</h2>
+
+    <div class="field-grid">
+      <label class="field">
+        <span>Сколько месяцев расходов хотите закрыть</span>
+        <input type="number" id="reserveMonths" min="1" max="36" step="1" value="6">
+      </label>
+      <label class="field">
+        <span>Уже накоплено в резерве</span>
+        <input type="number" id="reserveCurrent" min="0" step="1000" value="" placeholder="0">
+      </label>
+    </div>
+
+    <div class="goal-box">
+      <div class="goal-line"><span>Цель резерва</span><strong id="goalVal">0 ₽</strong></div>
+      <div class="progress"><div class="progress-fill" id="goalBar" style="background:linear-gradient(90deg,#fbbf24,#f59e0b);width:0%"></div></div>
+      <div class="goal-line"><span id="goalLeft">Осталось накопить: 0 ₽</span><span id="goalPct">0%</span></div>
+      <div class="goal-line"><span id="goalEta">—</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============ ХРАНИЛИЩЕ ============ */
+const KEY = 'money-calc-v1';
+
+const DEFAULT_STATE = {
+  incomes: [
+    { name: 'Зарплата', amount: 0 },
+    { name: 'Подработка / доп. доход', amount: 0 }
+  ],
+  expenses: [
+    { name: 'Жильё (аренда / ипотека)', amount: 0 },
+    { name: 'Продукты', amount: 0 },
+    { name: 'Транспорт', amount: 0 },
+    { name: 'Связь и интернет', amount: 0 },
+    { name: 'Здоровье и лекарства', amount: 0 },
+    { name: 'Одежда и обувь', amount: 0 },
+    { name: 'Кредиты и долги', amount: 0 },
+    { name: 'Дети / семья', amount: 0 },
+    { name: 'Развлечения', amount: 0 },
+    { name: 'Прочее', amount: 0 }
+  ],
+  investPercent: 30,
+  reservePercent: 20,
+  reserveMonths: 6,
+  reserveCurrent: 0
+};
+
+let state = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const parsed = JSON.parse(raw);
+    return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), parsed);
+  } catch (e) {
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+/* ============ УТИЛИТЫ ============ */
+const fmt = n => new Intl.NumberFormat('ru-RU').format(Math.round(n || 0)) + ' ₽';
+const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ============ ОТРИСОВКА СПИСКОВ ============ */
+function rowEl(item, list, kind) {
+  const row = document.createElement('div');
+  row.className = 'row';
+
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.placeholder = kind === 'income' ? 'Название дохода' : 'Название расхода';
+  name.value = item.name || '';
+  name.addEventListener('input', () => { item.name = name.value; save(); });
+
+  const amt = document.createElement('input');
+  amt.type = 'number';
+  amt.min = '0';
+  amt.step = '100';
+  amt.placeholder = '0';
+  amt.value = item.amount ? item.amount : '';
+  amt.addEventListener('input', () => {
+    item.amount = Math.max(0, parseFloat(amt.value) || 0);
+    update();
+  });
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'del-btn';
+  del.textContent = '×';
+  del.title = 'Удалить';
+  del.addEventListener('click', () => {
+    const i = list.indexOf(item);
+    if (i > -1) list.splice(i, 1);
+    kind === 'income' ? renderIncomes() : renderExpenses();
+    update();
+  });
+
+  row.append(name, amt, del);
+  return row;
+}
+
+function renderIncomes() {
+  const box = document.getElementById('incomeList');
+  box.innerHTML = '';
+  state.incomes.forEach(it => box.appendChild(rowEl(it, state.incomes, 'income')));
+}
+
+function renderExpenses() {
+  const box = document.getElementById('expenseList');
+  box.innerHTML = '';
+  state.expenses.forEach(it => box.appendChild(rowEl(it, state.expenses, 'expense')));
+}
+
+/* ============ СТЕК-БАР ============ */
+function renderStack(expenseM, investM, reserveM, restM) {
+  const stack = document.getElementById('stackBar');
+  const legend = document.getElementById('stackLegend');
+  stack.innerHTML = '';
+  legend.innerHTML = '';
+
+  const parts = [
+    { v: expenseM, c: 'var(--red)',    t: 'Расходы' },
+    { v: investM,  c: 'var(--green)',  t: 'Инвестиции' },
+    { v: reserveM, c: 'var(--amber)',  t: 'Резерв' },
+    { v: restM,    c: 'var(--violet)', t: 'Свободно' }
+  ].filter(p => p.v > 0);
+
+  const total = parts.reduce((s, p) => s + p.v, 0);
+  if (total <= 0) {
+    stack.innerHTML = '<div class="stack-empty">Введите доходы и расходы ↑</div>';
+    return;
+  }
+
+  parts.forEach(p => {
+    const seg = document.createElement('div');
+    seg.className = 'stack-seg';
+    seg.style.width = (p.v / total * 100) + '%';
+    seg.style.background = p.c;
+    seg.title = p.t + ': ' + fmt(p.v);
+    stack.appendChild(seg);
+
+    const li = document.createElement('div');
+    li.className = 'legend-item';
+    li.innerHTML = `<i style="background:${p.c}"></i><span>${p.t}</span><b>${fmt(p.v)}</b>`;
+    legend.appendChild(li);
+  });
+}
+
+/* ============ БАРЫ РАСХОДОВ ============ */
+function renderExpenseBars(expenseM) {
+  const list = document.getElementById('expenseBars');
+  list.innerHTML = '';
+
+  const items = state.expenses
+    .filter(e => Number(e.amount) > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  if (!items.length) {
+    list.innerHTML = '<p class="empty">Пока нет данных — заполните расходы выше, и вы увидите, куда уходит каждый рубль.</p>';
+    return;
+  }
+
+  items.forEach(e => {
+    const pct = expenseM > 0 ? (e.amount / expenseM * 100) : 0;
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-top">
+        <span>${esc(e.name) || 'Без названия'}</span>
+        <span>${fmt(e.amount)} · ${pct.toFixed(0)}%</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct.toFixed(2)}%"></div></div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+/* ============ РЕЗЕРВ ============ */
+function renderReserve(expenseM, reserveM) {
+  const goal = expenseM * (state.reserveMonths || 0);
+  const cur = Number(state.reserveCurrent) || 0;
+  const pct = goal > 0 ? Math.min(100, cur / goal * 100) : 0;
+  const left = Math.max(goal - cur, 0);
+
+  setText('goalVal', fmt(goal));
+  document.getElementById('goalBar').style.width = pct + '%';
+  setText('goalPct', pct.toFixed(0) + '%');
+
+  if (goal <= 0) {
+    setText('goalLeft', 'Осталось накопить: —');
+    setText('goalEta', 'Укажите расходы, чтобы рассчитать размер резерва.');
+    return;
+  }
+
+  setText('goalLeft', left > 0 ? 'Осталось накопить: ' + fmt(left) : 'Цель достигнута! 🎉');
+
+  let eta;
+  if (left <= 0) eta = 'Отличная работа — резерв собран. Можно направить деньги в инвестиции.';
+  else if (reserveM <= 0) eta = 'Поставьте процент на резерв больше 0 — и копить получится автоматически.';
+  else eta = `При ${fmt(reserveM)}/мес цель будет через ~${Math.ceil(left / reserveM)} мес.`;
+
+  setText('goalEta', eta);
+}
+
+/* ============ ГЛАВНЫЙ РАСЧЁТ ============ */
+function update() {
+  const incomeM  = state.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  const expenseM = state.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const freeM    = incomeM - expenseM;
+  const base     = Math.max(freeM, 0);
+
+  const investM  = base * state.investPercent / 100;
+  const reserveM = base * state.reservePercent / 100;
+  const restM    = base - investM - reserveM;
+
+  /* статистика */
+  setText('stIncomeM', fmt(incomeM));
+  setText('stIncomeY', 'за год: ' + fmt(incomeM * 12));
+  setText('stExpenseM', fmt(expenseM));
+  setText('stExpenseY', 'за год: ' + fmt(expenseM * 12));
+  setText('stFreeM', fmt(freeM));
+  document.getElementById('stFreeM').style.color = freeM >= 0 ? 'var(--blue)' : 'var(--red)';
+  setText('stFreeY', 'за год: ' + fmt(freeM * 12));
+
+  const rate = incomeM > 0 ? (investM + reserveM) / incomeM * 100 : 0;
+  setText('stRate', rate.toFixed(0) + '%');
+
+  /* итоги в списках */
+  setText('incomeTotal', fmt(incomeM));
+  setText('expenseTotal', fmt(expenseM));
+
+  /* распределение */
+  setText('investPctLabel', state.investPercent + '%');
+  setText('reservePctLabel', state.reservePercent + '%');
+  setText('restPctLabel', (100 - state.investPercent - state.reservePercent) + '%');
+  document.getElementById('restBar').style.width = (100 - state.investPercent - state.reservePercent) + '%';
+
+  setText('invM', fmt(investM));
+  setText('invY', 'в год: ' + fmt(investM * 12));
+  setText('resM', fmt(reserveM));
+  setText('resY', 'в год: ' + fmt(reserveM * 12));
+  setText('restM', fmt(restM));
+  setText('restY', 'в год: ' + fmt(restM * 12));
+
+  document.getElementById('warn').style.display = freeM < 0 ? 'block' : 'none';
+
+  /* блоки */
+  renderStack(expenseM, investM, reserveM, restM);
+  renderExpenseBars(expenseM);
+  renderReserve(expenseM, reserveM);
+
+  save();
+}
+
+/* ============ СОБЫТИЯ ============ */
+const investRange  = document.getElementById('investRange');
+const reserveRange = document.getElementById('reserveRange');
+
+investRange.addEventListener('input', () => {
+  state.investPercent = Number(investRange.value);
+  if (state.investPercent + state.reservePercent > 100) {
+    state.reservePercent = 100 - state.investPercent;
+    reserveRange.value = state.reservePercent;
+  }
+  update();
+});
+
+reserveRange.addEventListener('input', () => {
+  state.reservePercent = Number(reserveRange.value);
+  if (state.investPercent + state.reservePercent > 100) {
+    state.investPercent = 100 - state.reservePercent;
+    investRange.value = state.investPercent;
+  }
+  update();
+});
+
+document.getElementById('addIncome').addEventListener('click', () => {
+  state.incomes.push({ name: '', amount: 0 });
+  renderIncomes();
+  update();
+});
+
+document.getElementById('addExpense').addEventListener('click', () => {
+  state.expenses.push({ name: '', amount: 0 });
+  renderExpenses();
+  update();
+});
+
+document.getElementById('reserveMonths').addEventListener('input', e => {
+  state.reserveMonths = Math.max(1, Math.min(36, parseInt(e.target.value) || 1));
+  update();
+});
+
+document.getElementById('reserveCurrent').addEventListener('input', e => {
+  state.reserveCurrent = Math.max(0, parseFloat(e.target.value) || 0);
+  update();
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('Удалить все данные и начать заново?')) return;
+  localStorage.removeItem(KEY);
+  state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  init();
+});
+
+/* ============ ИНИЦИАЛИЗАЦИЯ ============ */
+function init() {
+  renderIncomes();
+  renderExpenses();
+
+  investRange.value = state.investPercent;
+  reserveRange.value = state.reservePercent;
+  document.getElementById('reserveMonths').value = state.reserveMonths;
+  document.getElementById('reserveCurrent').value = state.reserveCurrent || '';
+
+  update();
+}
+
+init();
+</script>
+</body>
+</html>
